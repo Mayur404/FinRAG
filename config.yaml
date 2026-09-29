@@ -1,0 +1,160 @@
+paths:
+  data: data
+  runs: runs
+  chroma: data/chroma
+  documents: data/documents
+  corpus: data/corpus
+  benchmark: data/financebench.jsonl
+ingestion:
+  parser: docling
+  strategies: [element]
+  docling_ocr: false
+  docling_table_structure: true
+llm:
+  provider: ollama
+  model: qwen3.5:4b
+  verifier_model: qwen2.5:7b
+  base_url: http://localhost:11434
+  temperature: 0
+  reasoning: false
+  timeout_seconds: 120
+  num_ctx: 8192
+embeddings:
+  provider: ollama
+  model: qwen3-embedding:0.6b
+  base_url: http://localhost:11434
+  batch_size: 16
+  timeout_seconds: 120
+chunking:
+  base_sizes: [128, 256, 512]
+  element_target_characters: 2048
+  table_target_characters: 2500
+  hierarchical_parent_characters: 4096
+  tokenizer: cl100k_base
+retrieval:
+  stage1_top_k: 10
+  top_k: 12
+  per_source_k: 16
+  fusion_k: 60
+  reranker_model: cross-encoder/ms-marco-MiniLM-L-6-v2
+  reranker_local_files_only: true
+  rerank_top_k: 12
+  source_context_k: 3
+  parent_context_seeds: 3
+  parent_context_neighbors: 2
+  context_tokens: 5500
+  collection_prefix: finance
+graph:
+  enabled: false
+  uri: ${NEO4J_URI}
+  user: ${NEO4J_USER}
+  password: ${NEO4J_PASSWORD}
+  max_traversal_depth: 6
+  max_nodes_per_query: 30
+  max_edges_per_query: 120
+  max_reference_resolution_calls: 20
+  write_batch_size: 500
+agent:
+  max_iterations: 3
+  max_tool_calls: 40
+  max_retries: 2
+  max_web_calls: 1
+  context_tokens: 5500
+  min_context_tokens: 3500
+  numeric_tolerance: 0.01
+web:
+  enabled: false
+  provider: tavily
+  tavily_api_key: ${TAVILY_API_KEY}
+  sec_user_agent: ${SEC_USER_AGENT}
+  timeout_seconds: 20
+api:
+  host: 127.0.0.1
+  port: 8000
+  default_profile: L
+evaluation:
+  profiles:
+    L: {paths: [], rerank: true, router: true, planner: true, grader: true, calculator: true, verifier: true, web: false}
+    B: {paths: [dense, graph], rerank: false, router: false, planner: false, grader: false, calculator: false, verifier: false, web: false}
+    C: {paths: [dense, bm25, graph], rerank: true, router: false, planner: false, grader: false, calculator: false, verifier: false, web: false}
+    D: {paths: [], rerank: true, router: true, planner: false, grader: false, calculator: false, verifier: false, web: false}
+    E: {paths: [], rerank: true, router: true, planner: true, grader: false, calculator: false, verifier: false, web: false}
+    F: {paths: [], rerank: true, router: true, planner: true, grader: true, calculator: false, verifier: false, web: false}
+    G: {paths: [], rerank: true, router: true, planner: true, grader: true, calculator: true, verifier: true, web: false}
+    H: {paths: [], rerank: true, router: true, planner: true, grader: true, calculator: true, verifier: true, web: true}
+prompts:
+  planner: >-
+    Classify this financial-report question. Return JSON with question_type,
+    subquestions (list), retrieval_strategy (list chosen from dense,bm25,graph,table),
+    preferred_sources (list), needs_calculator (boolean), needs_tavily (boolean),
+    context_budget (integer), and document_id (one ID from available_documents,
+    or null only when the question does not identify one report). Choose tools
+    and a report from the actual candidates. Available documents:
+    {available_documents}. Question: {question}
+  router: >-
+    Select retrieval paths from {available_paths} for the question and plan.
+    Return JSON with a nonempty "paths" list. Use table retrieval when answering
+    requires numeric financial-statement values or comparison of reported line
+    items. Question: {question} Plan: {plan}
+  reference_resolver: >-
+    Resolve this explicit cross-reference only among the listed parsed heading
+    candidates. Return JSON with target_id equal to one listed ID, or null if
+    ambiguous. Do not create a new target. Source: {source} Label: {label}
+    Candidates: {candidates}
+  grader: >-
+    Check whether the cited excerpts can answer the question completely and for
+    the correct company and period. Return JSON with sufficient (boolean),
+    needs_calculator (boolean), reason (string), rewritten_query (string).
+    Set needs_calculator true when deriving the answer requires arithmetic or
+    comparison of computed values. When evidence is insufficient,
+    rewritten_query must be a retrieval query naming the missing facts, line
+    items, periods, or concepts rather than a paraphrase of the question. Do not
+    require facts that are unnecessary to answer the question. Keep reason and
+    rewritten_query concise. Evidence is sufficient when it contains the inputs
+    needed for the deterministic calculator to derive the requested result; the
+    report does not need to state a derived ratio or percentage explicitly.
+    Require data only for the period asked; do not require a comparison period
+    unless the question requests a period-over-period comparison.
+    Question: {question} Evidence: {evidence}
+  synthesis: >-
+    Answer only from the numbered evidence. Cite evidence IDs in square brackets
+    after claims. Use supplied deterministic calculations for arithmetic and do
+    not calculate independently. Answer the requested question directly and omit
+    background, implications, and optional caveats that are not needed. Treat the
+    evidence assessment only as a sufficiency decision; every claim must still be
+    supported by the numbered evidence. When nonempty deterministic calculations
+    are supplied, use them even if the earlier evidence assessment was insufficient.
+    Give one concise, internally consistent answer.
+    If the evidence is insufficient, say No answer. Do not invent numbers or citations.
+    Question: {question} Evidence assessment: {grade} Evidence: {evidence}
+  calculator: >-
+    The plan has already determined whether arithmetic is required. When it is
+    required and the evidence contains the inputs, return JSON with a calculations
+    list. Each item must contain a concise label, a complete arithmetic expression,
+    and operand_evidence_ids. For comparisons, include one independently computed
+    expression for every alternative needed to answer the question. Expressions
+    use numeric literals from the evidence and only +, -, *, /, or parentheses.
+    Apply the financial definition asked by the question. Do not put evidence text,
+    labels, units, commas, or prose in an expression. operand_evidence_ids must list
+    every bracketed evidence label containing a number used. Return an empty
+    calculations list when no arithmetic is needed or a required input is absent.
+    For a named financial metric, apply its standard definition to total statement
+    line items; do not substitute a product, segment, or revenue mix percentage.
+    The evidence assessment identifies available inputs and may describe the needed formula. Question:
+    {question} Plan: {plan} Evidence assessment: {grade} Evidence: {evidence}
+  verifier: >-
+    Check each claim, cited evidence ID, amount, unit, period and any calculation.
+    Return JSON with valid (boolean), reason (string), supported_citations
+    (list of bare evidence labels such as E1, without brackets).
+    Calculations supplied here are outputs of the restricted calculator and may
+    be rounded in the answer within the configured tolerance. Reject answers
+    containing conflicting numeric results or claims, even if one result is
+    correct. Follow exclusions in the question and never compare an excluded
+    alternative. Calculator outputs have already been checked against their cited
+    evidence operands; do not claim those operands are absent. Mark valid when
+    the cited evidence and calculations support every claim. Keep the reason
+    concise and consistent with valid.
+    Question: {question} Evidence: {evidence} Calculations: {calculations} Answer: {answer}
+  judge: >-
+    Begin with True or False. Are the two answers the same with respect to this
+    question? Question: {question} Answer 1: {ground_truth} Answer 2: {prediction}

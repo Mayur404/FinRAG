@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>FinRAG — Financial Report Intelligence</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Space+Grotesk:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/assets/styles.css">
+  <script src="/assets/app.js" defer></script>
+</head>
+<body>
+  <header class="site-header">
+    <div class="brand-group">
+      <a class="brand" href="/" aria-label="FinRAG home">
+        <span class="brand-mark">↗</span>
+        <span class="brand-name">FinRAG</span>
+      </a>
+      <span class="brand-tag">FINANCIAL EVIDENCE ENGINE</span>
+    </div>
+    <div class="header-status">
+      <span id="corpus-status" class="status-badge" aria-live="polite">
+        <span class="status-dot"></span> Checking corpus…
+      </span>
+    </div>
+  </header>
+
+  <main class="main">
+    <div class="workspace-layout">
+      <!-- Left Sidebar: Scrollable Document Selector -->
+      <aside class="documents-sidebar" aria-label="Document selection">
+        <div class="sidebar-header">
+          <span class="sidebar-title">REPORTS</span>
+          <button type="button" id="select-all-btn" class="select-all-btn">Select All</button>
+        </div>
+        <div id="document-options" class="sidebar-doc-list" role="listbox" aria-label="Available reports">
+          <span class="loading-hint">Loading reports…</span>
+        </div>
+      </aside>
+
+      <!-- Main Research Workspace -->
+      <div class="workspace-content">
+        <section class="hero-section">
+          <div class="eyebrow">SOURCE-GROUNDED FINANCIAL INTELLIGENCE</div>
+          <h1 class="hero-title">Ask your<br><em>financial reports.</em></h1>
+        </section>
+
+        <form id="question-form" class="search-card">
+          <div class="form-main">
+            <textarea id="question" rows="3" required placeholder="Type your financial research question here…"></textarea>
+          </div>
+
+          <div class="form-actions">
+            <div id="ask-state-container" class="run-state-wrapper">
+              <p id="ask-state" class="run-state" role="status" aria-live="polite"></p>
+            </div>
+            <button id="ask-button" type="submit" class="submit-button">
+              Ask FinRAG <span class="button-arrow" aria-hidden="true">↗</span>
+            </button>
+          </div>
+        </form>
+
+        <section id="answer-panel" class="answer-panel hidden" aria-live="polite">
+          <div class="answer-header">
+            <div class="answer-eyebrow-group">
+              <span class="eyebrow">RESEARCH ANSWER</span>
+              <span id="answer-badge" class="verdict-badge">VERIFIED</span>
+            </div>
+            <div id="answer-meta" class="answer-meta"></div>
+          </div>
+
+          <!-- Answer & Evidence Navigation Tabs -->
+          <div class="answer-tabs" role="tablist">
+            <button type="button" class="tab-btn active" data-tab="tab-answer" role="tab" aria-selected="true">
+              Answer
+            </button>
+            <button type="button" class="tab-btn" data-tab="tab-evidence" role="tab" aria-selected="false">
+              Cited Evidence <span id="evidence-count-tab" class="tab-badge">0</span>
+            </button>
+            <button type="button" class="tab-btn hidden" id="tab-btn-calcs" data-tab="tab-calcs" role="tab" aria-selected="false">
+              Calculations <span id="calcs-count-tab" class="tab-badge">0</span>
+            </button>
+          </div>
+
+          <!-- Tab 1: Formatted Markdown Answer -->
+          <div id="tab-answer" class="tab-pane active" role="tabpanel">
+            <article id="answer-text" class="answer-markdown"></article>
+          </div>
+
+          <!-- Tab 2: Cited Evidence Passages -->
+          <div id="tab-evidence" class="tab-pane" role="tabpanel">
+            <div class="sources-header">
+              <h2 class="sources-title">Cited Evidence Passages</h2>
+              <span class="sources-caption">Click any citation in the answer to highlight its source below</span>
+            </div>
+            <div id="evidence-list" class="evidence-list"></div>
+          </div>
+
+          <!-- Tab 3: Verified Calculations (if available) -->
+          <div id="tab-calcs" class="tab-pane" role="tabpanel">
+            <div class="sources-header">
+              <h2 class="sources-title">Verified Financial Calculations</h2>
+              <span class="sources-caption">Strict arithmetic verified against cited operands</span>
+            </div>
+            <div id="calculations-list" class="calculations-list"></div>
+          </div>
+        </section>
+  </div>
+</div>
+</main>
+
+  <footer class="site-footer">
+    <div class="footer-content">
+      <span class="footer-brand"><strong>FinRAG</strong> · Financial Research & Reasoning Engine</span>
+    </div>
+  </footer>
+</body>
+</html>

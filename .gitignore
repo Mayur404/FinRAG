@@ -1,0 +1,33 @@
+# Environments & secrets
+.venv/
+venv/
+.env
+.env.*
+!.env.example
+
+# Runtime, data, & logs
+data/
+runs/
+*.log
+paper-extract.txt
+financepaper.pdf
+*.pdf
+
+# Python bytecode & packages
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+dist/
+build/
+
+# Testing & caches
+.pytest_cache/
+.coverage
+htmlcov/
+
+# OS & Editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
