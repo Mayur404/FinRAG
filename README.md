@@ -43,6 +43,11 @@ This is a subset experiment, not a reproduction of the paper's full 80-report, 1
 Run commands from the repository root with Ollama running:
 
 ```powershell
+# Unified local web workspace (Baseline and Improvements 1–4)
+.\.venv\Scripts\python.exe -m finpaper.web --port 8765
+# Or, after installation:
+finpaper-ui --port 8765
+
 # Baseline: answer all 50 questions
 .\.venv\Scripts\python.exe -m baseline run-all
 
@@ -61,6 +66,8 @@ Run commands from the repository root with Ollama running:
 ```
 
 Each method writes `question_replies.json` and `question_replies_review.md` in its own folder. Improvement 4 also saves its bounded agent trace per question. The evaluator writes the summary to `COMPARISON_EVALUATION.md` and detailed results to `evaluation/comparison_results.json`.
+
+The web workspace is served on `127.0.0.1` and does not expose the interface to the network. Choose a method and filing in the sidebar/form, then ask a question. The relevant indexes are built on the first request for a method and filing; first use may take several minutes. Later requests reuse the cached indexes. The agentic method shows its evidence sufficiency and verification status alongside the answer.
 
 ## Key findings on this subset
 

@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "finpaper"
 version = "0.1.0"
-description = "FinanceBench Docling hierarchical RAG"
+description = "FinanceBench report question answering with five RAG methods and a local web workspace"
 requires-python = ">=3.10"
 dependencies = ["pypdf>=5.0"]
 
@@ -16,6 +16,10 @@ neural = ["numpy>=1.26", "sentence-transformers>=5.0", "rank-bm25>=0.2.2", "torc
 
 [project.scripts]
 finpaper = "improvement1.app:main"
+finpaper-ui = "finpaper.web:main"
 
 [tool.setuptools.packages.find]
 include = ["finpaper*", "baseline*", "improvement1*", "improvement2*", "improvement3*", "improvement4*"]
+
+[tool.setuptools.package-data]
+finpaper = ["static/*.html", "static/*.css", "static/*.js"]

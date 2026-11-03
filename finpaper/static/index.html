@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f5f4ef">
+  <title>FinRAG · Financial Report Workspace</title>
+  <link rel="stylesheet" href="/styles.css">
+  <script defer src="/app.js"></script>
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="/" aria-label="FinRAG home"><span class="brand-icon">F<span>.</span></span><span>finrag</span></a>
+    <div class="header-caption">FINANCIAL EVIDENCE WORKSPACE</div>
+    <div class="local-status"><span class="status-dot"></span> LOCAL · PRIVATE</div>
+  </header>
+
+  <div class="layout">
+    <aside class="sidebar">
+      <div class="side-heading"><span class="eyebrow">RESEARCH LIBRARY</span><h2>Reports <span id="doc-count" class="count">—</span></h2></div>
+      <label class="search-label" for="doc-search">Find a filing</label>
+      <input id="doc-search" class="doc-search" type="search" placeholder="Search reports…" autocomplete="off">
+      <div id="doc-list" class="doc-list" aria-label="Available reports"><p class="muted">Loading reports…</p></div>
+      <div class="side-foot"><span class="pulse"></span><span>18 filings · FinanceBench subset</span></div>
+    </aside>
+
+    <main class="main">
+      <section class="hero">
+        <div class="eyebrow">ASK. TRACE. VERIFY.</div>
+        <h1>Make the filing<br><em>make sense.</em></h1>
+        <p>Choose a report and retrieval method. Get a focused answer with the evidence passages beside it.</p>
+      </section>
+
+      <section class="ask-card" aria-label="Ask a financial question">
+        <div class="form-top">
+          <div class="field"><label for="document">Selected filing</label><select id="document" required></select></div>
+          <div class="field method-field"><label for="method">Answer method</label><select id="method" required></select></div>
+        </div>
+        <p id="method-description" class="field-hint"></p>
+        <form id="ask-form">
+          <label class="sr-only" for="question">Your question</label>
+          <textarea id="question" rows="3" maxlength="8000" required placeholder="Ask about a metric, trend, vote, risk, or business event…"></textarea>
+          <div class="form-bottom"><span class="input-note">Enter to ask <b>↵</b> · Shift + Enter for a new line</span><button id="ask-button" type="submit"><span>Ask question</span><span class="arrow">↗</span></button></div>
+        </form>
+        <div id="status" class="status-message" role="status" aria-live="polite" hidden></div>
+      </section>
+
+      <section id="result" class="result" hidden aria-live="polite">
+        <div class="result-header"><div><div class="eyebrow">RESEARCH RESULT</div><h2 id="result-title">Answer</h2></div><div id="result-meta" class="result-meta"></div></div>
+        <div class="result-grid">
+          <article class="answer-card"><div class="card-label"><span class="label-mark">A</span> ANSWER</div><div id="answer" class="answer-text"></div><div id="agent-status" class="agent-status" hidden></div></article>
+          <aside class="evidence-panel"><div class="evidence-heading"><div><div class="card-label">SUPPORTING EVIDENCE</div><h3><span id="source-count">0</span> passages</h3></div><span class="evidence-icon">⌕</span></div><div id="sources" class="sources"></div></aside>
+        </div>
+      </section>
+      <footer class="footer">Answers are generated from the selected filing. Check the cited passages before relying on a figure.</footer>
+    </main>
+  </div>
+</body>
+</html>
