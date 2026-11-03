@@ -1,20 +1,21 @@
 [build-system]
-requires = ["setuptools>=75"]
+requires = ["setuptools>=68"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "finance-rag"
+name = "finpaper"
 version = "0.1.0"
-requires-python = ">=3.11"
-dependencies = [
-  "fastapi>=0.115", "uvicorn[standard]>=0.34", "python-multipart>=0.0.20",
-  "pydantic>=2.10", "PyYAML>=6", "httpx>=0.28", "python-dotenv>=1",
-  "beautifulsoup4>=4.12",
-  "docling>=2", "pypdfium2>=4", "chromadb>=1", "neo4j>=5", "rank-bm25>=0.2.2",
-  "sentence-transformers>=4", "langgraph>=0.3", "langchain-core>=0.3",
-  "langchain-ollama>=0.3", "langchain-groq>=0.3", "llama-index-core>=0.12",
-  "rouge-score>=0.1.2", "sacrebleu>=2.5", "tiktoken>=0.9"
-]
+description = "FinanceBench Docling hierarchical RAG"
+requires-python = ">=3.10"
+dependencies = ["pypdf>=5.0"]
+
+[project.optional-dependencies]
+docling = ["docling[onnxruntime]>=2.0"]
+baseline = ["unstructured[pdf]>=0.15.0"]
+neural = ["numpy>=1.26", "sentence-transformers>=5.0", "rank-bm25>=0.2.2", "torch>=2.9,<2.10"]
+
+[project.scripts]
+finpaper = "improvement1.app:main"
 
 [tool.setuptools.packages.find]
-where = ["src"]
+include = ["finpaper*", "baseline*", "improvement1*", "improvement2*", "improvement3*", "improvement4*"]

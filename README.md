@@ -1,87 +1,77 @@
-# Financial Evidence Lab
+# FinanceBench RAG Methods
 
-Website for source-grounded financial-report research. The backend uses Docling,
-Chroma, BM25, Neo4j, LangGraph, LangChain, LlamaIndex nodes, a local cross-encoder,
-and Ollama. Stage 1 evaluates fixed 128/256/512 token and element-aware chunks.
-Stage 2 runs a bounded planner, retrieval router, reranker, graph expansion,
-evidence grader, calculator, and verifier. No benchmark result is bundled.
+This project implements and compares a paper-inspired financial-report retrieval-augmented question-answering baseline with four retrieval improvements, including a bounded agentic method.
 
-## Start locally (PowerShell)
+## Project data
 
-1. Ensure Ollama is running and the configured models are available:
-   `ollama pull qwen3.5:4b` and `ollama pull qwen3-embedding:0.6b`.
-2. Create the local environment if needed: `py -m venv .venv`.
-3. Install only there: `.\.venv\Scripts\python.exe -m pip install -e .`.
-4. Run `.\.venv\Scripts\python.exe scripts\ingest_corpus.py` to prepare the
-   report corpus before asking questions. The script records progress under
-   `runs/` and resumes from completed report checkpoints.
-5. Start the website: `.\.venv\Scripts\python.exe -m uvicorn finance_rag.api.app:app --host 127.0.0.1 --port 8000`.
-6. Put financial-report PDFs in `data/corpus/` (subfolders are supported), then
-   open `http://127.0.0.1:8000` and ask a question. The first question indexes
-   the files; later questions pick up added, changed, or removed PDFs.
+- **Benchmark:** 50 FinanceBench questions from 18 company filings (882 PDF pages).
+- **Source documents:** the 18 PDFs used by the subset are included in `financebench/pdfs/`.
+- **Paper:** `baselinepaper.pdf` is the source paper, *Financial Report Chunking for Effective Retrieval Augmented Generation* (arXiv:2402.05131).
+- **Evaluation:** answer sets, detailed comparisons, and slide content are included. See `COMPARISON_EVALUATION.md` and `evaluation/comparison_results.json`.
 
-The website has a question form and shows answers with their source passages.
-The current two-report setup uses Docling for layout-aware headings, tables,
-and page provenance, then indexes element chunks in Chroma. OCR is off because
-these PDFs have embedded text; table structure extraction remains on. Neo4j
-is disabled, so this setup does not run graph traversal. The configured
-cross-encoder may download model weights. The website reports actual failures.
+This is a subset experiment, not a reproduction of the paper's full 80-report, 141-question evaluation. The baseline also uses a local parser fallback and Qwen instead of the paper's Chipper and GPT-4 setup; see `baseline/README.md` for details.
 
-For the Graph-RAG research mode, set `graph.enabled` to `true`,
-`ingestion.strategies` to the intended
-chunk strategies, and `api.default_profile` to `G`. Start a Neo4j server at the
-configured Bolt URI first; `docker-compose --env-file .env up -d` is one option.
-Changing these settings makes the corpus reindex under a new configuration.
+## Methods
 
-For FinanceBench evaluation, put the JSONL file at the configured
-`paths.benchmark` location. The native public FinanceBench schema is supported,
-including all nested evidence entries and conversion from zero-based evidence
-pages to one-based PDF pages. Flat rows with `question`, `answer`, `doc_name`
-(matching a corpus PDF stem) or `document_id`, plus optional `page_number` and
-`evidence_text`, are also supported. The research evaluation API remains available at
-`POST /api/evaluate`; it indexes the corpus before a run. Every question,
-including failures, is recorded under `runs/`. Profile H requires explicitly
-enabling Tavily in `config.yaml` and setting its key; it is a separate condition.
+| Folder | Method |
+|---|---|
+| `baseline/` | Element-based chunks, prefix and table-description search text, MPNet dense retrieval |
+| `improvement1/` | Docling extraction and hierarchical child-to-parent retrieval |
+| `improvement2/` | Dense and BM25 retrieval with rank fusion and cross-encoder reranking |
+| `improvement3/` | Fused evidence from Improvements 1 and 2 |
+| `improvement4/` | Bounded query planning, evidence grading, follow-up retrieval, and answer verification |
 
-Configuration is in `config.yaml`. Credentials use `.env` substitutions. Tavily
-and SEC sources are disabled unless `web.enabled` is set to `true`. Main
-FinanceBench runs should remain local-only. Chroma and parsed documents are
-stored under `data/`, execution traces under `runs/`.
+## Setup (Windows)
 
-## Prepared FinanceBench data
+1. Install NVIDIA CUDA drivers and [Ollama](https://ollama.com/).
+2. Download the local answer model:
 
-The official repository is cloned under `data/financebench-source/`. Its 150
-public questions are preserved in `data/financebench.jsonl`. The current corpus
-contains two reports, `AMD_2022_10K.pdf` and `BOEING_2022_10K.pdf`, selected
-from the three reports tied for the most public questions (seven each) by PDF
-length. Their 14 original question rows are copied unchanged to
-`data/financebench_two_reports.jsonl`. No questions or answers are coded into
-the application. Only the two PDFs are ingested; answers and evidence annotations
-are not retrieval inputs.
+   ```powershell
+   ollama pull qwen3.5:4b
+   ```
 
-The pinned source revision, file hashes, and selected reports are recorded in
-`data/financebench_preparation.json`. Once Ollama and its embedding model are
-running, ingestion can be started or resumed without any QA execution:
+3. Create the project virtual environment and install the dependencies:
+
+   ```powershell
+   .\setup.ps1
+   ```
+
+   The retrieval models are downloaded from Hugging Face on first use and cached under each method folder. A CUDA-capable GPU is required by the current embedding and reranking implementations.
+
+## Run
+
+Run commands from the repository root with Ollama running:
 
 ```powershell
-.\.venv\Scripts\python.exe scripts\ingest_corpus.py
+# Baseline: answer all 50 questions
+.\.venv\Scripts\python.exe -m baseline run-all
+
+# Improvement 1 and 2: answer all questions
+.\.venv\Scripts\python.exe -m improvement1.run_all_questions
+.\.venv\Scripts\python.exe -m improvement2.run_all_questions
+
+# Combined and agentic methods: one question or all 50
+.\.venv\Scripts\python.exe -m improvement3 ask --doc-name AMD_2022_10K --question "What was AMD's total revenue in FY2022?"
+.\.venv\Scripts\python.exe -m improvement3 run-all
+.\.venv\Scripts\python.exe -m improvement4 ask --doc-name AMD_2022_10K --question "What was AMD's total revenue in FY2022?"
+.\.venv\Scripts\python.exe -m improvement4 run-all
+
+# Recompute the comparison report after generating all methods' answers
+.\.venv\Scripts\python.exe tools\evaluate_comparison.py
 ```
 
-Completed reports are checkpointed in `data/corpus_index.json`; ingestion logs
-and its actual completion or failure status are written under `runs/`. Wait for
-ingestion to finish before asking questions. Restart the website after changes
-to application code.
+Each method writes `question_replies.json` and `question_replies_review.md` in its own folder. Improvement 4 also saves its bounded agent trace per question. The evaluator writes the summary to `COMPARISON_EVALUATION.md` and detailed results to `evaluation/comparison_results.json`.
 
-Use [the two-report manual guide](docs/FINANCEBENCH_TWO_REPORT_TESTING.md) for
-the 14 questions whose reports are indexed. The
-[complete manual question guide](docs/FINANCEBENCH_MANUAL_TESTING.md) retains
-all 150 original questions and answers, including reports outside this corpus. The
-[complete question catalog](docs/financebench_manual_questions.csv) contains all
-150 questions for manual comparison. No QA tests were run during preparation.
+## Key findings on this subset
 
-## Research boundaries
+- Baseline: 24/50 strict and 37/50 loose answer correctness.
+- Combined (Improvement 3): 21/50 strict and 41/50 loose.
+- Agentic (Improvement 4): 23/50 strict and 41/50 loose.
+- No method wins every metric; the report documents the judge criteria and exact evidence-page matching convention.
 
-The source paper is `financepaper.pdf`. This is a methodological adaptation,
-because its original GPT-4, Weaviate, Chipper, and specific source corpus are
-not present. See [deviations](docs/DEVIATIONS.md). Results must be generated
-from the files you provide; none are prefilled.
+Answer correctness is model-judged by a local Qwen 3.5 4B model, not human-audited. Page hit converts FinanceBench's zero-based evidence page index to a one-based PDF page. See the comparison report for full scores and limitations.
+
+## References
+
+- Jimeno Yepes, A., You, Y., Milczek, J., Laverde, S., & Li, L. (2024). *Financial Report Chunking for Effective Retrieval Augmented Generation*. arXiv:2402.05131.
+- Islam, P. et al. (2023). *FinanceBench: A New Benchmark for Financial Question Answering*. arXiv:2311.11944.

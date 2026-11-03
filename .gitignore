@@ -1,33 +1,19 @@
-# Environments & secrets
+# Python and virtual environments
 .venv/
-venv/
+**/__pycache__/
+*.py[cod]
+
+# Local credentials and logs
 .env
 .env.*
 !.env.example
-
-# Runtime, data, & logs
-data/
-runs/
 *.log
-paper-extract.txt
-financepaper.pdf
-*.pdf
 
-# Python bytecode & packages
-__pycache__/
-*.py[cod]
-*$py.class
-*.egg-info/
-dist/
-build/
+# Downloaded model weights and generated extraction/index caches
+**/models/
+**/elements/
+**/indexes/
+**/.cache/
 
-# Testing & caches
-.pytest_cache/
-.coverage
-htmlcov/
-
-# OS & Editor
-.DS_Store
-Thumbs.db
-.vscode/
-.idea/
+# Local staging checkout used to publish the current project
+.repo_publish_stage/
