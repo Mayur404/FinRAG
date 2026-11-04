@@ -1,7 +1,7 @@
 """Evaluate FinanceBench reply sets and write a comparison report.
 
-Correctness is judged with the project-local Qwen model; page retrieval is
-recomputed for methods 0-2 because their saved reply JSON omitted provenance.
+Correctness is judged with the project-local Qwen model; saved page provenance
+is reused from the comparison data or method-specific source lists.
 """
 from __future__ import annotations
 
@@ -96,7 +96,7 @@ def free_cuda_models():
 
 
 def collect_pages(items, questions):
-    """Reuse saved page provenance from the previous run and Improvement 4."""
+    """Reuse stored page provenance and explicit source lists for Improvements 3–4."""
     pages = {method: {} for method, _ in METHODS}
     previous = load_json(DETAILS) if DETAILS.exists() else {"questions": []}
     for row in previous.get("questions", []):
@@ -163,6 +163,17 @@ def summarize(method, rows, pages, refs):
                 hit += 1
         page_stats[k] = {"hits": hit, "eligible": eligible,
                          "rate": hit / eligible if eligible else None}
+    eligible = hit = 0
+    for row in rows:
+        gold = row.get("gold_page")
+        retrieved = pages[method].get(row["financebench_id"], [])
+        if not isinstance(retrieved, list) or gold is None:
+            continue
+        eligible += 1
+        if gold + 1 in retrieved:
+            hit += 1
+    page_stats["all_returned"] = {"hits": hit, "eligible": eligible,
+                                  "rate": hit / eligible if eligible else None}
     answers = [row["answers"].get(method, "") for row in rows]
     references = [row["expected_answer"] for row in rows]
     return {"strict": strict, "loose": loose, "judged": len(judged),
@@ -175,7 +186,7 @@ def write_report(rows, pages, stats, judge_errors):
     lines = ["# FinanceBench Method Comparison", "",
              "Manual answer checks and retrieval/text-overlap metrics for the same 50-question subset.", "",
              "## Summary", "",
-             "| Method | Manual test (reported) | Page accuracy (Hit@6) | ROUGE-L F1 | BLEU-4 |",
+             "| Method | Manual test (reported) | Page accuracy (all returned pages) | ROUGE-L F1 | BLEU-4 |",
              "|---|---:|---:|---:|---:|"]
     for method, title in METHODS:
         score = MANUAL_TEST_SCORES[method]
@@ -183,21 +194,18 @@ def write_report(rows, pages, stats, judge_errors):
             "correct": score, "total": 50, "rate": score / 50,
             "source": "user-reported aggregate", "question_level_labels_available": False,
         }
-        page = stats[method]["page"][6]
+        page = stats[method]["page"]["all_returned"]
         page_accuracy = percent_row(page["hits"], page["eligible"])
-        if method == "improvement1" and page["eligible"] == 0:
-            page_accuracy = "n/a"
         lines.append("| {} | {} | {} | {:.4f} | {:.4f} |".format(
             title, percent_row(score, 50), page_accuracy,
             stats[method]["rouge_l_macro"], stats[method]["bleu4_corpus"]))
     lines += ["", "## Metric definitions", "",
               "- **Manual test (reported):** Aggregate counts supplied by the user, out of 50. Arithmetic was checked, but no per-question manual labels are available to independently certify the counts.",
-              "- **Page accuracy (Hit@6):** At least one of the top six retrieved PDF pages exactly matches the FinanceBench evidence page. FinanceBench's page index is zero-based, so the evaluator adds one to compare with one-based PDF page numbers. This measures page retrieval, not answer correctness.",
+              "- **Page accuracy (all returned pages):** At least one page in the method's complete returned source list exactly matches the FinanceBench evidence page. FinanceBench's page index is zero-based, so the evaluator adds one to compare with one-based PDF page numbers. Returned list lengths differ by method (Baseline 10, Improvement 1 up to 10, Improvement 2 6, Improvement 3 10, Improvement 4 12), so this is full-list coverage rather than a fixed-depth comparison.",
               "- **ROUGE-L F1:** Macro-average over 50 answers using token-level longest common subsequence; reported from 0 to 1.",
               "- **BLEU-4:** Corpus BLEU with brevity penalty and add-one n-gram smoothing; reported from 0 to 1.",
               "- These are separate measures. Page accuracy, ROUGE, and BLEU cannot be derived from manual correctness counts. ROUGE and BLEU measure wording overlap, not factual correctness.",
-              "- Manual answer correctness can exceed Page Hit@6: Page Hit@6 checks only whether one annotated evidence page appears among the top six retrieved pages. A correct answer may be supported elsewhere in the filing.",
-              "- Improvement 1 page accuracy is unavailable because its saved retrieval record contains an offline model-download error; no score is estimated.",
+              "- Manual answer correctness can exceed page accuracy: page accuracy checks for one annotated evidence page, while a correct answer may be supported elsewhere in the filing.",
               "", "Earlier model-assisted strict/loose judgments and per-question retrieval details remain in [`evaluation/comparison_results.json`](evaluation/comparison_results.json). The manual test was provided as aggregate counts only.", ""]
     REPORT.write_text("\n".join(lines), encoding="utf-8")
 
@@ -247,6 +255,8 @@ def main():
             and gold_physical_page is not None and gold_physical_page in row["retrieved_pages"][method][:1]) for method, _ in METHODS}
         row["page_hit_at_6"] = {method: bool(isinstance(row["retrieved_pages"][method], list)
             and gold_physical_page is not None and gold_physical_page in row["retrieved_pages"][method][:6]) for method, _ in METHODS}
+        row["page_hit_all_returned"] = {method: bool(isinstance(row["retrieved_pages"][method], list)
+            and gold_physical_page is not None and gold_physical_page in row["retrieved_pages"][method]) for method, _ in METHODS}
     stats = {method: summarize(method, rows, pages, questions) for method, _ in METHODS}
     for method, _ in METHODS:
         score = MANUAL_TEST_SCORES[method]

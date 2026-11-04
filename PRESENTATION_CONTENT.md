@@ -68,7 +68,7 @@ The paper compares this structural approach with fixed-size chunking and reports
 
 **Implementation note:** The paper used Chipper and GPT-4. Our local baseline used a Chipper-style extraction pipeline with a cached Docling fallback where the Unstructured/Tesseract parser was unavailable, and local Qwen for generation. This is a paper-inspired implementation, not an exact reproduction.
 
-**Our manual check:** **30/50 answers correct (60%)**. Page Hit@6 was **33/50 (66%)**. The manual count is reported separately from retrieval accuracy.
+**Our manual check:** **30/50 answers correct (60%)**. Page accuracy across all returned pages was **37/50 (74%)**. The manual count is reported separately from retrieval accuracy.
 
 ## Slide 5 — Stage 2: Proposed Modifications
 
@@ -101,25 +101,25 @@ All four methods use local `qwen3.5:4b` for generation; Improvement 4 also uses 
 
 ## Slide 6: Evaluation Results
 
-Manual answer counts were supplied for all five methods. Page accuracy is Page Hit@6: an exact match to a FinanceBench evidence page among the top six retrieved pages. ROUGE-L and BLEU-4 are computed against the reference answers and measure wording overlap.
+Manual answer counts were supplied for all five methods. Page accuracy checks whether the benchmark evidence page appears anywhere in that method?s complete returned source list. The number of returned pages varies by method. ROUGE-L and BLEU-4 measure wording overlap with FinanceBench reference answers.
 
-| Method | Manual test (reported) | Page accuracy (Hit@6) | ROUGE-L F1 | BLEU-4 |
+| Method | Manual test (reported) | Page accuracy (all returned pages) | ROUGE-L F1 | BLEU-4 |
 |---|---:|---:|---:|---:|
-| Baseline | 30/50 (60%) | 33/50 (66%) | 0.0899 | 0.0200 |
-| Hierarchical (Improvement 1) | 32/50 (64%) | n/a* | 0.1009 | 0.0217 |
+| Baseline | 30/50 (60%) | 37/50 (74%) | 0.0899 | 0.0200 |
+| Hierarchical (Improvement 1) | 32/50 (64%) | 34/50 (68%) | 0.1009 | 0.0217 |
 | Hybrid BM25 (Improvement 2) | 29/50 (58%) | 29/50 (58%) | 0.0976 | 0.0172 |
-| Combined (Improvement 3) | 35/50 (70%) | 29/50 (58%) | 0.0996 | 0.0193 |
-| Agentic (Improvement 4) | 38/50 (76%) | 30/50 (60%) | 0.2135 | 0.0517 |
+| Combined (Improvement 3) | 35/50 (70%) | 38/50 (76%) | 0.0996 | 0.0193 |
+| Agentic (Improvement 4) | 38/50 (76%) | 38/50 (76%) | 0.2135 | 0.0517 |
 
-* Improvement 1 page accuracy is unavailable because the saved page-retrieval run failed to load its Hugging Face model offline. Manual counts were supplied as aggregate totals; no per-question labels are saved to independently verify them. Page Hit@6 checks one annotated evidence page, so it does not cap answer correctness. ROUGE/BLEU are wording-overlap scores, not correctness scores. See `COMPARISON_EVALUATION.md` for details.
+The returned source counts are 10 for Baseline, up to 10 for Improvement 1, 6 for Improvement 2, 10 for Improvement 3, and 12 for Improvement 4. Manual scores are aggregate counts supplied by the user, with no per-question labels available. Page accuracy checks one annotated evidence page, so it does not cap answer correctness. ROUGE/BLEU measure text overlap, not factual correctness. See `COMPARISON_EVALUATION.md` for full metric details.
 
 ## Slide 7: Conclusions and Key Learning
 
 - Financial QA benefits from document structure: a useful number may appear in a table even when nearby narrative text does not state it.
-- On the manual check, Improvement 4 scored highest at **38/50 (76%)**; the baseline had the highest available Page Hit@6 at **33/50 (66%)**.
-- Results differ by metric: agentic scored highest on manual checks and text overlap, while the baseline led page retrieval. ROUGE and BLEU measure wording overlap, not factual correctness.
-- **Limitations:** 50-question subset; paper parser/model differ from the local implementation; manual results are aggregate counts without per-question labels; Improvement 1 page-hit data is unavailable.
-- **Next step:** record per-question human labels, restore Improvement 1 retrieval provenance, and evaluate on a larger FinanceBench sample.
+- On the manual check, Improvement 4 scored highest at **38/50 (76%)**. Combined and agentic tied for the highest all-returned page accuracy at **38/50 (76%)**.
+- Results differ by metric: agentic led manual checks and text overlap; combined and agentic tied on all-returned page matches. ROUGE and BLEU measure wording overlap, not factual correctness.
+- **Limitations:** 50-question subset; paper parser/model differ from the local implementation; manual results are aggregate counts without per-question labels; the returned page counts vary by method.
+- **Next step:** record per-question human labels and compare retrieval at a common result depth on a larger FinanceBench sample.
 
 **References**
 
