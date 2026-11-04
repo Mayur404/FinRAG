@@ -103,7 +103,7 @@ All four methods use local `qwen3.5:4b` for generation; Improvement 4 also uses 
 
 Manual answer counts were supplied for all five methods. Page accuracy is Page Hit@6: an exact match to a FinanceBench evidence page among the top six retrieved pages. ROUGE-L and BLEU-4 are computed against the reference answers and measure wording overlap.
 
-| Method | Manual test | Page accuracy (Hit@6) | ROUGE-L F1 | BLEU-4 |
+| Method | Manual test (reported) | Page accuracy (Hit@6) | ROUGE-L F1 | BLEU-4 |
 |---|---:|---:|---:|---:|
 | Baseline | 30/50 (60%) | 33/50 (66%) | 0.0899 | 0.0200 |
 | Hierarchical (Improvement 1) | 32/50 (64%) | n/a* | 0.1009 | 0.0217 |
@@ -111,7 +111,7 @@ Manual answer counts were supplied for all five methods. Page accuracy is Page H
 | Combined (Improvement 3) | 35/50 (70%) | 29/50 (58%) | 0.0996 | 0.0193 |
 | Agentic (Improvement 4) | 38/50 (76%) | 30/50 (60%) | 0.2135 | 0.0517 |
 
-* Improvement 1 page accuracy is unavailable because the saved page-retrieval run failed to load its Hugging Face model offline. Manual correctness and text-overlap scores are independent; higher ROUGE/BLEU does not by itself mean more correct answers. See `COMPARISON_EVALUATION.md` for metric definitions and limitations.
+* Improvement 1 page accuracy is unavailable because the saved page-retrieval run failed to load its Hugging Face model offline. Manual counts were supplied as aggregate totals; no per-question labels are saved to independently verify them. Page Hit@6 checks one annotated evidence page, so it does not cap answer correctness. ROUGE/BLEU are wording-overlap scores, not correctness scores. See `COMPARISON_EVALUATION.md` for details.
 
 ## Slide 7: Conclusions and Key Learning
 
