@@ -23,6 +23,7 @@ METHODS = [
     ("improvement3", "Combined (Improvement 3)"),
     ("improvement4", "Agentic (Improvement 4)"),
 ]
+MANUAL_TEST_SCORES = {"baseline": 30, "improvement1": 32, "improvement2": 29, "improvement3": 35, "improvement4": 38}
 OUT = ROOT / "evaluation"
 OUT.mkdir(exist_ok=True)
 DETAILS = OUT / "comparison_results.json"
@@ -171,53 +172,30 @@ def summarize(method, rows, pages, refs):
 
 
 def write_report(rows, pages, stats, judge_errors):
-    eligible_pages = sum(row["gold_page"] is not None for row in rows)
     lines = ["# FinanceBench Method Comparison", "",
-             "Evaluation of the saved 50-question answer sets for the base-paper baseline and Improvements 1–4.", "",
+             "Manual answer checks and retrieval/text-overlap metrics for the same 50-question subset.", "",
              "## Summary", "",
-             "| Method | Strict correctness | Loose correctness | Page Hit@1 | Page Hit@3 | Page Hit@6 | ROUGE-L F1 (macro) | BLEU-4 (corpus) |",
-             "|---|---:|---:|---:|---:|---:|---:|---:|"]
+             "| Method | Manual test | Page accuracy (Hit@6) | ROUGE-L F1 | BLEU-4 |",
+             "|---|---:|---:|---:|---:|"]
     for method, title in METHODS:
-        s = stats[method]
-        page = s["page"]
-        lines.append("| {} | {} | {} | {} | {} | {} | {:.4f} | {:.4f} |".format(
-            title, percent_row(s["strict"], s["judged"]), percent_row(s["loose"], s["judged"]),
-            percent_row(page[1]["hits"], page[1]["eligible"]),
-            percent_row(page[3]["hits"], page[3]["eligible"]),
-            percent_row(page[6]["hits"], page[6]["eligible"]), s["rouge_l_macro"], s["bleu4_corpus"]))
+        score = MANUAL_TEST_SCORES[method]
+        stats[method]["manual_test"] = {"correct": score, "total": 50, "rate": score / 50}
+        page = stats[method]["page"][6]
+        page_accuracy = percent_row(page["hits"], page["eligible"])
+        if method == "improvement1" and page["eligible"] == 0:
+            page_accuracy = "n/a"
+        lines.append("| {} | {} | {} | {:.4f} | {:.4f} |".format(
+            title, percent_row(score, 50), page_accuracy,
+            stats[method]["rouge_l_macro"], stats[method]["bleu4_corpus"]))
     lines += ["", "## Metric definitions", "",
-              f"- **Strict correctness:** Qwen 3.5 4B judged that the answer covered all core reference facts, including material values, entity, direction, and period where relevant, with no material contradiction. Score is out of 50.",
-              f"- **Loose correctness:** The judge found the central answer correct, allowing omission of secondary details but not a central contradiction. Score is out of 50.",
-              f"- **Page Hit@k:** At least one of the top k retrieved physical pages matches the question's FinanceBench `evidence_page_num` after converting its zero-based index to a one-based PDF page. Missing gold pages are excluded (eligible denominator: {eligible_pages}/50). Prior computed page lists are reused for Baseline and Improvements 1–3; Improvement 4 uses its saved selected source list.",
-              "- **ROUGE-L F1:** Macro-average over 50 answers using token-level longest common subsequence; reported as 0–1.",
-              "- **BLEU-4:** Corpus BLEU with brevity penalty and add-one n-gram smoothing; reported as 0–1. Similarity metrics reward lexical overlap and do not establish factual correctness.",
-              "- The same local Qwen judge evaluated all five answers for a question in one call, using identical strict/loose rules. This is model-assisted evaluation, not a human audit.",
-              "", "## Per-question semantic judgments and page hits", "",
-              "`S` = strict pass, `L` = loose pass. Page fields show exact evidence-page hit at ranks 1 and 6 after converting FinanceBench's zero-based gold page to a one-based PDF page (`—` means the gold page was unavailable).", "",
-              "| # | FinanceBench ID | Baseline S/L | I1 S/L | I2 S/L | I3 S/L | I4 S/L | Page @1 (B / I1 / I2 / I3 / I4) | Page @6 (B / I1 / I2 / I3 / I4) |",
-              "|---:|---|---|---|---|---|---|---|"]
-    for i, row in enumerate(rows, 1):
-        vals = []
-        for method, _ in METHODS:
-            j = row.get("judgment", {}).get(method, {})
-            vals.append(("✓" if j.get("strict") else "✗") + "/" + ("✓" if j.get("loose") else "✗"))
-        pg1, pg6 = [], []
-        for method, _ in METHODS:
-            retrieved = pages[method].get(row["financebench_id"], [])
-            if not isinstance(retrieved, list) or row["gold_page"] is None:
-                pg1.append("—"); pg6.append("—")
-            else:
-                gold_physical_page = row["gold_page"] + 1
-                pg1.append("✓" if gold_physical_page in retrieved[:1] else "✗")
-                pg6.append("✓" if gold_physical_page in retrieved[:6] else "✗")
-        lines.append(f"| {i} | {row['financebench_id']} | " + " | ".join(vals) +
-                     " | " + " / ".join(pg1) + " | " + " / ".join(pg6) + " |")
-    if judge_errors:
-        lines += ["", "## Judge or retrieval issues", ""]
-        lines.extend(f"- {error}" for error in judge_errors)
-    lines += ["", "Detailed per-question labels, source pages, and text metrics are in [`evaluation/comparison_results.json`](evaluation/comparison_results.json).", ""]
+              "- **Manual test:** Correct answers counted by the user, out of 50. Only aggregate counts were supplied; no per-question manual labels are available.",
+              "- **Page accuracy (Hit@6):** At least one of the top six retrieved PDF pages exactly matches the FinanceBench evidence page. FinanceBench's page index is zero-based, so the evaluator adds one to compare with one-based PDF page numbers. This measures page retrieval, not answer correctness.",
+              "- **ROUGE-L F1:** Macro-average over 50 answers using token-level longest common subsequence; reported from 0 to 1.",
+              "- **BLEU-4:** Corpus BLEU with brevity penalty and add-one n-gram smoothing; reported from 0 to 1.",
+              "- These are separate measures. Page accuracy, ROUGE, and BLEU cannot be derived from manual correctness counts. ROUGE and BLEU measure wording overlap, not factual correctness.",
+              "- Improvement 1 page accuracy is unavailable because its saved retrieval record contains an offline model-download error; no score is estimated.",
+              "", "Earlier model-assisted strict/loose judgments and per-question retrieval details remain in [`evaluation/comparison_results.json`](evaluation/comparison_results.json). The manual test was provided as aggregate counts only.", ""]
     REPORT.write_text("\n".join(lines), encoding="utf-8")
-
 
 def main():
     questions = load_json(ROOT / "data" / "questions.json")
@@ -266,6 +244,9 @@ def main():
         row["page_hit_at_6"] = {method: bool(isinstance(row["retrieved_pages"][method], list)
             and gold_physical_page is not None and gold_physical_page in row["retrieved_pages"][method][:6]) for method, _ in METHODS}
     stats = {method: summarize(method, rows, pages, questions) for method, _ in METHODS}
+    for method, _ in METHODS:
+        score = MANUAL_TEST_SCORES[method]
+        stats[method]["manual_test"] = {"correct": score, "total": 50, "rate": score / 50}
     DETAILS.write_text(json.dumps({"method_names": dict(METHODS), "metrics": stats,
                                    "judge_errors": judge_errors, "questions": rows},
                                   ensure_ascii=False, indent=2), encoding="utf-8")
